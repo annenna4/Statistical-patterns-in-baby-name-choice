@@ -1,4 +1,4 @@
-function [pop,value,namesFreq,age,lifetimes,age_count] = get_dynamics_novelty2(t,pop,value,pDeath,nPop,pMut,lambda,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,age,lifetimes,age_count)
+function [pop,value,namesFreq,age,lifetimes,age_count] = get_dynamics(t,pop,value,pDeath,nPop,pMut,lambda,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,age,lifetimes,age_count)
 
 % death
 nBirth = binornd(nPop,pDeath); % number of death = number of birth
