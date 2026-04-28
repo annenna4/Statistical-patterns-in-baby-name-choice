@@ -1,68 +1,124 @@
-function [pop,value,namesFreq,addMut] = get_dynamics_local(t,pop,value,pDeath,nPop,copyAll,copyThresholdHigh,copyThresholdLow,PDmode,namesFreq,binSize)
+function [pop,value,namesFreq,addMut,age,lifetimes,age_count] = get_dynamics_local(t,pop,value,pDeath,nPop,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,binSize,lambda,age,lifetimes,age_count)
 
-nBins = nPop/binSize; % number of bins
+nBins = nPop/binSize;
 
-% DEATH
-indexDeath = [];
-nBirth = binornd(nPop,pDeath); % number of death = number of birth
-indexDeath = randsample(nPop,nBirth); % generating indices of individuals to be removed
+% death - birth
+nBirth = binornd(nPop,pDeath);
+indexDeath = randsample(nPop,nBirth);
 
-% REPRODUCTION
-hAdd = [];
-hAddPlus = 0;
+% distribute births across bins
+nBirthBinV = repmat(floor(nBirth/nBins),1,nBins);
+rest = mod(nBirth,nBins);
+if rest > 0
+    binIndices = randperm(nBins,rest);
+    nBirthBinV(binIndices) = nBirthBinV(binIndices)+1;
+end
 
-h = floor((nBirth)/nBins); % ``equal" number of naive individuals per bin
-nBirthBinV(1:nBins) = ones(1,nBins)*h;
-rest = mod(nBirth,nBins); % number of remaining naive individuals
-h = randperm(nBins); h = h(1:rest);
-nBirthBinV(h) = nBirthBinV(h)+ones(1,rest); % distribution of the remaining individuals across bins
+% divide population into bins
+binM = reshape(randperm(nPop),binSize,nBins)';
 
-% dividing population into bins
-v = randperm(nPop); % random permutation of population
-binM = reshape(v,binSize,nBins)';
-
+% define copy pool
 if copyAll == 0
-    copyIndex = find(pop(2,:)>(t-copyThresholdHigh) & pop(2,:)<(t-copyThresholdLow) ); % defining copy pool
+    copyMask = (pop(2,:)>(t-copyThreshHigh)) & (pop(2,:)<(t-copyThreshLow));
     i = 1;
-    while isempty(copyIndex) % trouble shooting if there are no individuals of the considered age (happens, if at all, only at the beginning of the simulation)
-        copyIndex = find(pop(2,:)>(t-(copyThreshHigh+i)) & pop(2,:)<(t-(copyThreshLow-i)));
+    while ~any(copyMask)
+        copyMask = (pop(2,:)>(t-(copyThreshHigh+i))) & (pop(2,:)<(t-(copyThreshLow-i)));
         i = i+1;
     end
-else % copy pool = population
-    copyIndex = [1:nPop];
+    copyIndex = find(copyMask);
+else
+    copyIndex = 1:nPop;
 end
+
 types = unique(pop(1,copyIndex)); % unique variant types in the copy pool
-h = hist(pop(1,copyIndex),types); % and their frequencies in the copy pool
-
-for i = 1:nBins
-    mask = unique(pop(1,binM(i,:))); % variant types not to be copied
-    if numel(types)>1
-        h1 = randsrc(nBirthBinV(i),1,[types;h./sum(h)])'; % choose variants from copy pool
-        [sharedvals,~] = ismember(h1,mask); % checking whether there are ``forbidden" types
-        idx = find(sharedvals == 1); % find those
-        h1(idx) = []; % delete variants present in the bin
-        hAdd = [hAdd h1]; % collecting types of naive individuals not present in the bins
-        hAddPlus = hAddPlus+numel(idx); % adding number of innvations needed to total count
+if numel(types)>1
+    [~, ~, ic] = unique(pop(1,copyIndex));
+    h = accumarray(ic,1)';
+    if lambda == 0
+        h = (h./numel(copyIndex));
     else
-        hAddPlus = hAddPlus+nBirthBinV(i);
+        [~, idx] = ismember(types,age(1,1:age_count));
+        h_age = t-age(2,idx);
+        h = (h./numel(copyIndex)).*(1-exp(-lambda*h_age));
+        h = h./sum(h);
     end
+
+    % Pre-allocate space
+    hAdd = zeros(1,nBirth);
+    hAddIdx = 0;
+    hAddPlus = 0;
+
+    % Sample for each bin
+    for i = 1:nBins
+        mask = unique(pop(1,binM(i,:)));
+        % Sample variants
+        %samples = randsrc(nBirthBinV(i),1,[types;h])';
+        samples = randsample(types,nBirthBinV(i),true,h);
+
+        % remove forbidden types
+        forbidden = ismember(samples,mask);
+        validSamples = samples(~forbidden);
+
+        % collect valid copies
+        nValid = numel(validSamples);
+        hAdd(hAddIdx+1:hAddIdx+nValid) = validSamples;
+        hAddIdx = hAddIdx + nValid;
+
+        % count innovations needed
+        hAddPlus = hAddPlus+sum(forbidden);
+    end
+    hAdd = hAdd(1:hAddIdx);
+else
+    hAddPlus = nBirth;
+    hAdd = [];
 end
 
-pop(1,indexDeath) = [hAdd value + [1:hAddPlus]]; % adding copied + innovated types
-pop(2,indexDeath) = t*ones(1,nBirth); % adding birth date
+% update population
+newVariants = value + (1:hAddPlus);
+pop(1,indexDeath) = [hAdd,newVariants];
+pop(2,indexDeath) = t;
 
-if PDmode == 1
-    names = unique(hAdd); % copied types
-    if numel(names)>1
-        [progFreq] = hist(hAdd,names);
-        namesFreq(names) = namesFreq(names) + progFreq; % updating progeny count
-    elseif numel(names)==1
-        namesFreq(names) = namesFreq(names) + numel(hAdd); % updating progeny count
+% update age tracking
+age(1, age_count+1:age_count+hAddPlus) = newVariants;
+age(2, age_count+1:age_count+hAddPlus) = t;
+age_count = age_count+hAddPlus;
+
+% check for extinctions and record lifetime
+types = unique(pop(1,:));
+[~, idx] = ismember(age(1,1:age_count),types);
+dead_idx = find(idx==0);
+
+if ~isempty(dead_idx)
+    dead_variants = age(:,dead_idx);
+    h_lifetimes = t-dead_variants(2,:);
+
+    % emergency expansion of lifetimes-vector
+    max_lifetime = max(h_lifetimes);
+    if max_lifetime>length(lifetimes)
+        new_size = max(length(lifetimes)*2,max_lifetime);
+        lifetimes = [lifetimes,zeros(1,new_size-length(lifetimes))];
+%        warning('lifetimes expanded to %d at t=%d', new_size, t);
     end
-    namesFreq(value+1:value+hAddPlus) = ones(1,hAddPlus); % adding innovations to progeny count
+    % update lifetimes
+    lifetimes = lifetimes+accumarray(h_lifetimes',1,[length(lifetimes),1])';
+
+    % remove dead variants from age array
+    age(:,dead_idx) = [];
+    age_count = age_count-numel(dead_idx);
+end
+
+
+% update progeny frequency
+if PDmode == 1
+    names = unique(hAdd);
+    [~, ~, ic] = unique(hAdd);
+    progFreq = accumarray(ic, 1);
+    namesFreq(names) = namesFreq(names)+progFreq';
+
+    % Add innovations to progeny count
+    namesFreq(newVariants) = 1;
 end
 
 value = value+hAddPlus;
-addMut = (hAddPlus)/nBirth; % innovation rate in this time step
-
+addMut = hAddPlus/nBirth;
 
