@@ -36,7 +36,7 @@ tini = t;
 
 maxVariants = 10^7;
 
-initialisation of population 1
+% initialisation of population 1
 numbTypeIni = 2; % number of types initially present
 value1 = numbTypeIni;
 pop1 = get_popIni(nPop,numbTypeIni,ageIni);
@@ -45,7 +45,7 @@ age_count1 = numbTypeIni;
 age1(1,1:age_count1) = 1:age_count1;
 age1(2,1:age_count1) = ones(1,age_count1);
 
-initialisation of population 2
+% initialisation of population 2
 numbTypeIni = nPop/10; % number of types initially present
 value2 = numbTypeIni;
 pop2 = get_popIni(nPop,numbTypeIni,ageIni);
@@ -58,7 +58,6 @@ diffPop1Pop2 = 5;
 stepTime = 1000;
 
 while diffPop1Pop2>0
-    for t = tini:tini
     t = t+1;
 
     if localMode == 0
