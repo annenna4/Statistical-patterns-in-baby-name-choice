@@ -5,7 +5,7 @@
 clear
 close all
 
-nPop = 10^5; % population size
+nPop = 10^6; % population size
 pMut = 5*10^-3; % innovation rate (per transmission event)
 pDeath = 0.015; % per capita death rate
 lambda = 0.0; % strength of anti-novelty bias
@@ -16,7 +16,7 @@ copyThresholdHigh = 6; % upper bound of the age of the copying pool (ATTENTION: 
 copyThresholdLow = 0; % lower bound of the age of the copying pool
 
 tMax = 100000; % time steps to be run after equilibrium has been reached
-itMax = 1; % number of simulations
+itMax = 10; % number of simulations
 
 localMode = 0; % 0: age-structured transmission model as explained in section 2.1.,
                % 1: age-structured transmission model with local interactions as explained in section 2.2
