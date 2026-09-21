@@ -18,9 +18,9 @@ copyThresholdLow = 0; % lower bound of the age of the copying pool
 tMax = 100; % time steps to be run after equilibrium has been reached
 itMax = 10; % number of simulations
 
-localMode = 1; % 0: age-structured transmission model as explained in section 2.1.,
+localMode = 0; % 0: age-structured transmission model as explained in section 2.1.,
 % 1: age-structured transmission model with local interactions as explained in section 2.2
-groupSize = 105; % size of local groups when localMode =1
+groupSize = 100; % size of local groups when localMode =1
 
 PDmode = 0; % 0: do nothing, 1: calculate progeny distribution
 saveMode = 0; % 0: do nothing, 1: save simulation output 
