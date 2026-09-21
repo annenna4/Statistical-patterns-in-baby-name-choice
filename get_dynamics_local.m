@@ -1,7 +1,7 @@
-function [pop,value,namesFreq,addMut,age,lifetimes,age_count] = get_dynamics_novelty_local(t,pop,value,pDeath,nPop,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,binSize,lambda,age,lifetimes,age_count)
+function [pop,value,namesFreq,addMut,age,lifetimes,age_count] = get_dynamics_local(t,pop,value,pDeath,nPop,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,groupSize,lambda,age,lifetimes,age_count)
 
 % split population into local groups
-[binSizes, bnd, perm] = group_population(nPop, binSize);
+[binSizes, bnd, perm] = get_groups(nPop, groupSize);
 nBins = numel(binSizes);
 
 % death - birth
