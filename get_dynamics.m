@@ -1,4 +1,5 @@
-function [pop,value,namesFreq,age,lifetimes,age_count] = get_dynamics(t,pop,value,pDeath,nPop,pMut,lambda,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,age,lifetimes,age_count)
+function [pop,value,namesFreq,age,lifetimes,age_count] = get_dynamics_novelty(t,pop,value,pDeath,nPop,pMut,lambda,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,age,lifetimes,age_count)
+
 
 % death
 nBirth = binornd(nPop,pDeath); % number of death = number of birth
@@ -45,16 +46,13 @@ if nCopy > 0
         index = randsample(h,nCopy,true);
         hAdd = pop(1,copyIndex(index));
     else % anti-novelty bias of strength lambda
-        % choosing role models from copy pool
-        types = unique(pop(1,copyIndex)); % variant types present in copy pool
+        [types, ~, ic] = unique(pop(1,copyIndex)); % variant types present in copy pool
         if numel(types)>1
-            [~, ~, ic] = unique(pop(1,copyIndex));
             h = accumarray(ic,1)';
-
             [~, idx] = ismember(types,age(1,1:age_count));
             h_age = t-age(2,idx);
             h = (h./numel(copyIndex)).*(1-exp(-lambda*h_age));
-            hAdd = randsrc(1,nCopy,[types;h./sum(h)]);
+            hAdd = randsample(types,nCopy,true,h./sum(h));
         else
             hAdd = types*ones(1,nCopy);
         end
@@ -79,10 +77,15 @@ if nMut > 0
     age_count = age_count + nMut;
 end
 
-% check for extinctions and record lifetime
-types = unique(pop(1,:));
-[~, idx] = ismember(age(1,1:age_count),types);
-dead_idx = find(idx == 0);
+maxID = value + nMut;                 % largest variant ID currently in use
+alive = false(1,maxID);
+alive(pop(1,:)) = true;               % which variants still have carriers
+
+ids = age(1,1:age_count);
+isLive = false(1,age_count);
+nz = ids > 0;                     % guard: a 0 entry counts as dead,
+isLive(nz) = alive(ids(nz));          % exactly as ISMEMBER returned idx = 0
+dead_idx = find(~isLive);
 
 if ~isempty(dead_idx)
     dead_variants = age(:,dead_idx);
@@ -97,16 +100,15 @@ if ~isempty(dead_idx)
     end
     % update lifetimes
     lifetimes = lifetimes+accumarray(h_lifetimes',1,[length(lifetimes),1])';
-
-    % remove dead variants from age array
-    age(:, dead_idx) = [];
-    age_count = age_count-numel(dead_idx);
+    keepIdx = find(isLive);
+    nLive = numel(keepIdx);
+    age(:,1:nLive) = age(:,keepIdx);
+    age_count = nLive;
 end
 
 % update progeny frequency
 if PDmode == 1 && ~isempty(hAdd)
-    names = unique(hAdd);
-    [~, ~, ic] = unique(hAdd);
+    [names, ~, ic] = unique(hAdd);
     progFreq = accumarray(ic,1);
     namesFreq(names) = namesFreq(names)+progFreq';
 
