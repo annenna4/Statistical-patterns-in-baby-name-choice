@@ -1,21 +1,25 @@
-function [pop,value,namesFreq,addMut,age,lifetimes,age_count] = get_dynamics_local(t,pop,value,pDeath,nPop,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,binSize,lambda,age,lifetimes,age_count)
+function [pop,value,namesFreq,addMut,age,lifetimes,age_count] = get_dynamics_novelty_local(t,pop,value,pDeath,nPop,copyAll,copyThreshHigh,copyThreshLow,PDmode,namesFreq,binSize,lambda,age,lifetimes,age_count)
 
-nBins = nPop/binSize;
+% split population into local groups
+[binSizes, bnd, perm] = group_population(nPop, binSize);
+nBins = numel(binSizes);
 
 % death - birth
 nBirth = binornd(nPop,pDeath);
+if nBirth == 0                      % nothing happens this time step
+    addMut = 0;
+    return
+end
 indexDeath = randsample(nPop,nBirth);
 
-% distribute births across bins
-nBirthBinV = repmat(floor(nBirth/nBins),1,nBins);
-rest = mod(nBirth,nBins);
+% distribute births across bins, proportional to bin size
+w = binSizes./nPop;
+nBirthBinV = floor(nBirth.*w);
+rest = nBirth - sum(nBirthBinV);
 if rest > 0
-    binIndices = randperm(nBins,rest);
-    nBirthBinV(binIndices) = nBirthBinV(binIndices)+1;
+    pick = randsample(nBins,rest,true,w);
+    nBirthBinV = nBirthBinV + accumarray(pick(:),1,[nBins 1])';
 end
-
-% divide population into bins
-binM = reshape(randperm(nPop),binSize,nBins)';
 
 % define copy pool
 if copyAll == 0
@@ -50,9 +54,13 @@ if numel(types)>1
 
     % Sample for each bin
     for i = 1:nBins
-        mask = unique(pop(1,binM(i,:)));
-        % Sample variants
-        %samples = randsrc(nBirthBinV(i),1,[types;h])';
+        if nBirthBinV(i) == 0
+            continue
+        end
+        members = perm(bnd(i)+1 : bnd(i+1));   % this bin's individuals
+        mask = unique(pop(1,members));
+
+        % sample variants
         samples = randsample(types,nBirthBinV(i),true,h);
 
         % remove forbidden types
@@ -87,7 +95,6 @@ age_count = age_count+hAddPlus;
 types = unique(pop(1,:));
 [~, idx] = ismember(age(1,1:age_count),types);
 dead_idx = find(idx==0);
-
 if ~isempty(dead_idx)
     dead_variants = age(:,dead_idx);
     h_lifetimes = t-dead_variants(2,:);
@@ -97,16 +104,15 @@ if ~isempty(dead_idx)
     if max_lifetime>length(lifetimes)
         new_size = max(length(lifetimes)*2,max_lifetime);
         lifetimes = [lifetimes,zeros(1,new_size-length(lifetimes))];
-%        warning('lifetimes expanded to %d at t=%d', new_size, t);
     end
+
     % update lifetimes
     lifetimes = lifetimes+accumarray(h_lifetimes',1,[length(lifetimes),1])';
-
-    % remove dead variants from age array
-    age(:,dead_idx) = [];
-    age_count = age_count-numel(dead_idx);
+    keepIdx = find(idx~=0);
+    nLive = numel(keepIdx);
+    age(:,1:nLive) = age(:,keepIdx);
+    age_count = nLive;
 end
-
 
 % update progeny frequency
 if PDmode == 1
@@ -114,11 +120,9 @@ if PDmode == 1
     [~, ~, ic] = unique(hAdd);
     progFreq = accumarray(ic, 1);
     namesFreq(names) = namesFreq(names)+progFreq';
-
     % Add innovations to progeny count
     namesFreq(newVariants) = 1;
 end
 
 value = value+hAddPlus;
 addMut = hAddPlus/nBirth;
-
