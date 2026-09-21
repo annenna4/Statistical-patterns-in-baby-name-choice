@@ -1,29 +1,28 @@
-
-function [pop1,age1] = get_burnIn(pDeath,nPop,pMut,copyAll,copyThresholdHigh,copyThresholdLow,lambda,localMode,binSize,lifetimes)
+function [pop1,age1] = get_burnIn_novelty(pDeath,nPop,pMut,copyAll,copyThresholdHigh,copyThresholdLow,lambda,localMode,binSize,lifetimes)
 
 % BURN IN RULE: it is assumed that the stationary state has been reached when all initially present variant types have gone extinct, ie. when all variant types have undergone neutral
 % dynamic. This is a relatively strict rule that potentially takes a large amount of time
-% 
+%
 % ageIni = ceil(rand(1,nPop)*50); % initial birth years
 % t = max(ageIni);
-% 
+%
 % maxVariants = 10^7;
-% 
+%
 % % initialisation of population
 % numbTypeIni = 2; % number of types initially present
 % value = numbTypeIni;
 % pop1 = get_popIni(nPop,numbTypeIni,ageIni);
-% age1 = zeros(2,maxVariants); % innovation times of variants 
+% age1 = zeros(2,maxVariants); % innovation times of variants
 % age_count = numbTypeIni;
 % age1(1,1:age_count) = 1:age_count;
 % age1(2,1:age_count) = ones(1,age_count);
-% 
+%
 % while  min(pop1(1,:))<numbTypeIni+1 % until all types have undergone neutral dynamics
 %     t = t+1;
 %     if localMode == 0
-%         [pop1,value,~,age1,~,age_count] = get_dynamics(t,pop1,value,pDeath,nPop,pMut,lambda,copyAll,copyThresholdHigh,copyThresholdLow,0,[],age1,lifetimes,age_count);
+%         [pop1,value,~,age1,~,age_count] = get_dynamics_novelty2(t,pop1,value,pDeath,nPop,pMut,lambda,copyAll,copyThresholdHigh,copyThresholdLow,0,[],age1,lifetimes,age_count);
 %     elseif localMode == 1
-%        [pop1,value,~,~,age1,~,age_count] = get_dynamics_local(t,pop1,value,pDeath,nPop,copyAll,copyThresholdHigh,copyThresholdLow,0,[],binSize,lambda,age1,lifetimes,age_count);
+%        [pop1,value,~,~,age1,~,age_count] = get_dynamics_novelty_local2(t,pop1,value,pDeath,nPop,copyAll,copyThresholdHigh,copyThresholdLow,0,[],binSize,lambda,age1,lifetimes,age_count);
 %     end
 % end
 
@@ -40,7 +39,7 @@ maxVariants = 10^7;
 numbTypeIni = 2; % number of types initially present
 value1 = numbTypeIni;
 pop1 = get_popIni(nPop,numbTypeIni,ageIni);
-age1 = zeros(2,maxVariants); % innovation times of variants 
+age1 = zeros(2,maxVariants); % innovation times of variants
 age_count1 = numbTypeIni;
 age1(1,1:age_count1) = 1:age_count1;
 age1(2,1:age_count1) = ones(1,age_count1);
@@ -49,7 +48,7 @@ age1(2,1:age_count1) = ones(1,age_count1);
 numbTypeIni = nPop/10; % number of types initially present
 value2 = numbTypeIni;
 pop2 = get_popIni(nPop,numbTypeIni,ageIni);
-age2 = zeros(2,maxVariants); % innovation times of variants 
+age2 = zeros(2,maxVariants); % innovation times of variants
 age_count2 = numbTypeIni;
 age2(1,1:age_count2) = 1:age_count2;
 age2(2,1:age_count2) = ones(1,age_count2);
@@ -66,7 +65,7 @@ while diffPop1Pop2>0
     elseif localMode == 1
         [pop1,value1,~,~,age1,~,age_count1] = get_dynamics_local(t,pop1,value1,pDeath,nPop,copyAll,copyThresholdHigh,copyThresholdLow,0,[],binSize,lambda,age1,lifetimes,age_count1);
         [pop2,value2,~,~,age2,~,age_count2] = get_dynamics_local(t,pop2,value2,pDeath,nPop,copyAll,copyThresholdHigh,copyThresholdLow,0,[],binSize,lambda,age2,lifetimes,age_count2);
-    end                                                       
+    end
 
     if mod(t,stepTime) == 0
         type = unique(pop1(1,:));
